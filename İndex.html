@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️💰 Kasa Defteri Uygulaması</title>
+    <!-- Tarayıcı sekmesi için favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .container {
+            max-width: 1280px;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #4a90e2;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+        }
+        .close-button {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            color: #888;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-button:hover {
+            color: #000;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    
+    <!-- Ana Konteyner -->
+    <div id="main-container" class="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 m-4 w-full container">
+        
+        <!-- Başlık ve Çıkış Bölümü -->
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-8 pb-4 border-b gap-4">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-800 tracking-wide leading-tight">
+                Kasa Defteri Panosu
+            </h1>
+            <div class="flex items-center space-x-3">
+                <button type="button" id="debtors-button" class="hidden bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-blue-700 transition duration-300 ease-in-out cursor-pointer">
+                    <i class="fas fa-exclamation-triangle mr-1.5"></i> Borçlular
+                </button>
+                <button type="button" id="logout-button" class="hidden bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-300 transition duration-300 ease-in-out cursor-pointer">
+                    <i class="fas fa-sign-out-alt mr-1.5"></i> Çıkış Yap
+                </button>
+            </div>
+        </header>
+        
+        <!-- Grafikler ve Özet Bölümü -->
+        <section id="summary-section" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+            <!-- Genel Özet Kartları -->
+            <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-blue-50 p-6 rounded-2xl shadow-sm border border-blue-200">
+                    <span class="text-sm text-gray-600 font-medium">Toplam Müşteri</span>
+                    <span id="total-users" class="block text-3xl font-bold text-blue-600 mt-2">0</span>
+                </div>
+                <div class="bg-green-50 p-6 rounded-2xl shadow-sm border border-green-200">
+                    <span class="text-sm text-gray-600 font-medium">Toplam Ödeme</span>
+                    <span id="total-paid" class="block text-3xl font-bold text-green-600 mt-2">0 TL</span>
+                </div>
+                <div class="bg-red-50 p-6 rounded-2xl shadow-sm border border-red-200">
+                    <span class="text-sm text-gray-600 font-medium">Toplam Borç</span>
+                    <span id="total-debt" class="block text-3xl font-bold text-red-600 mt-2">0 TL</span>
+                </div>
+            </div>
+
+            <!-- Toplam Borç Grafiği -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col items-center">
+                <h3 class="text-xl font-bold text-blue-800 mb-4 text-center">Borç Durumu Grafiği</h3>
+                <div id="debt-chart" class="h-40 w-full flex items-end">
+                    <div class="w-full h-full bg-gray-200 rounded-lg relative overflow-hidden">
+                        <div id="paid-bar" class="bg-green-500 h-0 transition-all duration-700 ease-out absolute bottom-0 left-0 rounded-lg shadow-inner"></div>
+                        <div id="remaining-bar" class="bg-red-500 h-0 transition-all duration-700 ease-out absolute bottom-0 left-0 rounded-lg opacity-80"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between w-full mt-4 text-sm font-semibold text-gray-600">
+                    <span>Ödenen: <span id="paid-amount" class="text-green-600">0 TL</span></span>
+                    <span>Kalan: <span id="remaining-amount" class="text-red-600">0 TL</span></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Şifre Giriş Bölümü -->
+        <div id="login-section" class="flex flex-col items-center justify-center py-12">
+            <div class="bg-white p-8 sm:p-10 rounded-3xl shadow-xl w-full max-w-md border border-gray-200">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-2xl mb-3">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">Yönetici Girişi</h2>
+                    <p class="text-xs text-gray-500 mt-1">Varsayılan Şifre: 1234</p>
+                </div>
+                
+                <input type="password" id="password-input" placeholder="Şifrenizi girin..." class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-center text-lg">
+                <button type="button" id="login-button" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out cursor-pointer">
+                    Giriş Yap
+                </button>
+            </div>
+        </div>
+        
+        <!-- İçerik Bölümü (Şifre doğruysa gösterilecek) -->
+        <div id="content-section" class="hidden">
+            
+            <!-- Para Yatırma Başvurusu Bölümü -->
+            <section class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm mb-8 border border-gray-200">
+                <h3 class="text-2xl font-bold text-blue-800 mb-6">Para Yatırma Başvurusu</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="deposit-amount" class="block text-sm font-medium text-gray-700 mb-2">Yatırılacak Tutar (TL)</label>
+                        <input type="number" id="deposit-amount" placeholder="Örn: 500" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="user-select" class="block text-sm font-medium text-gray-700 mb-2">Müşteri Seçin</label>
+                        <select id="user-select" class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- Kullanıcılar JS ile doldurulacak -->
+                        </select>
+                    </div>
+                    <div class="self-end">
+                        <button type="button" id="deposit-button" class="w-full bg-green-600 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:bg-green-700 transition duration-300 cursor-pointer">
+                            Başvuru Yap
+                        </button>
+                    </div>
+                </div>
+                <div id="application-status" class="flex items-center space-x-2 hidden mt-4">
+                    <div id="status-icon" class="text-lg"></div>
+                    <span id="status-message" class="font-semibold"></span>
+                </div>
+            </section>
+
+            <!-- Müşteri Listesi -->
+            <section class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm mb-8 border border-gray-200">
+                <h3 class="text-2xl font-bold text-blue-800 mb-6">Müşteri Listesi</h3>
+                <div id="user-list" class="space-y-4">
+                    <!-- Kullanıcı bilgileri JavaScript ile buraya eklenecek -->
+                </div>
+            </section>
+        </div>
+        
+        <!-- Altbilgi -->
+        <footer id="footer-section" class="text-center text-gray-500 mt-10 text-sm">
+            <p class="font-bold text-gray-600">TEŞEKKÜR EDERİZ... İYİ GÜNLER DİLERİZ...</p>
+        </footer>
+    </div>
+    
+    <!-- Modal HTML -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="modal-close-x">&times;</span>
+            <p id="modal-message" class="text-lg font-semibold text-gray-800 my-4 whitespace-pre-line"></p>
+            <div id="excuse-box" class="hidden my-4">
+                <textarea id="excuse-text" rows="4" placeholder="Mazeretinizi buraya yazın..." class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 mb-4 text-sm"></textarea>
+                <button type="button" id="submit-excuse" class="w-full bg-orange-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:bg-orange-700 transition duration-300 cursor-pointer">
+                    Mazereti Gönder
+                </button>
+            </div>
+            <button type="button" id="ok-button" class="mt-2 w-full bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-xl shadow-md hover:bg-blue-700 transition duration-300 cursor-pointer">Tamam</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const PASSWORD = "1234";
+
+            // SADECE İSTEDİĞİNİZ ÖZELLİK: 2. kişi (Can) ile 6. kişi (Mehmet) yer değiştirdi
+            let users = [
+                { id: 1, name: "Ahmet", phone: "555-123-4567", address: "Ankara", debt: 1500, paid: 1500, dueDate: "2024-05-10" },
+                { id: 6, name: "Can", phone: "555-678-9012", address: "Adana", debt: 1800, paid: 0, dueDate: "2024-08-15" }, // 2. SIRA: CAN
+                { id: 3, name: "Ayşe", phone: "555-234-5678", address: "İzmir", debt: 500, paid: 0, dueDate: "2025-09-03" },
+                { id: 4, name: "Fatma", phone: "555-345-6789", address: "Bursa", debt: 1200, paid: 0, dueDate: "2024-08-01" },
+                { id: 5, name: "Hatice", phone: "555-456-7890", address: "Antalya", debt: 800, paid: 800, dueDate: "2024-09-05" },
+                { id: 2, name: "Mehmet", phone: "555-987-6543", address: "İstanbul", debt: 2500, paid: 500, dueDate: "2025-09-05" } // 6. SIRA: MEHMET
+            ];
+
+            // DOM Elemanları
+            const loginSection = document.getElementById('login-section');
+            const contentSection = document.getElementById('content-section');
+            const summarySection = document.getElementById('summary-section');
+            const passwordInput = document.getElementById('password-input');
+            const loginButton = document.getElementById('login-button');
+            const logoutButton = document.getElementById('logout-button');
+            const debtorsButton = document.getElementById('debtors-button');
+            const userList = document.getElementById('user-list');
+            const paidAmountElem = document.getElementById('paid-amount');
+            const remainingAmountElem = document.getElementById('remaining-amount');
+            const paidBar = document.getElementById('paid-bar');
+            const remainingBar = document.getElementById('remaining-bar');
+            const totalUsersElem = document.getElementById('total-users');
+            const totalDebtElem = document.getElementById('total-debt');
+            const totalPaidElem = document.getElementById('total-paid');
+            const depositAmountInput = document.getElementById('deposit-amount');
+            const userSelect = document.getElementById('user-select');
+            const depositButton = document.getElementById('deposit-button');
+            const applicationStatus = document.getElementById('application-status');
+            const statusIcon = document.getElementById('status-icon');
+            const statusMessage = document.getElementById('status-message');
+            
+            // Modal Elemanları
+            const modal = document.getElementById('myModal');
+            const modalMessage = document.getElementById('modal-message');
+            const excuseBox = document.getElementById('excuse-box');
+            const excuseText = document.getElementById('excuse-text');
+            const submitExcuseButton = document.getElementById('submit-excuse');
+            const okButton = document.getElementById('ok-button');
+            const modalCloseX = document.getElementById('modal-close-x');
+
+            let currentUserDocId = null;
+
+            // Bilgi Modalı Açma
+            function showMessageModal(message) {
+                modalMessage.textContent = message;
+                modalMessage.classList.remove('hidden');
+                excuseBox.classList.add('hidden');
+                okButton.classList.remove('hidden');
+                modal.style.display = "flex";
+            }
+
+            // Mazeret Modalı Açma
+            function showExcuseModal(userId) {
+                currentUserDocId = userId;
+                const user = users.find(u => u.id === userId);
+                if (!user) return;
+
+                modalMessage.textContent = `${user.name} için mazeret bildirimi`;
+                modalMessage.classList.remove('hidden');
+                excuseText.value = user.excuse || '';
+                excuseBox.classList.remove('hidden');
+                okButton.classList.add('hidden');
+                modal.style.display = "flex";
+            }
+
+            function closeModal() {
+                modal.style.display = "none";
+            }
+
+            // Modal Kapatma Dinleyicileri
+            if (modalCloseX) modalCloseX.onclick = closeModal;
+            if (okButton) okButton.onclick = closeModal;
+            window.onclick = (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            };
+
+            // Mazeret Kaydetme
+            if (submitExcuseButton) {
+                submitExcuseButton.onclick = () => {
+                    const excuse = excuseText.value.trim();
+                    const userIndex = users.findIndex(u => u.id === currentUserDocId);
+                    if (userIndex > -1) {
+                        users[userIndex].excuse = excuse;
+                        showMessageModal("Mazeret başarıyla kaydedildi!");
+                        renderContent();
+                    } else {
+                        showMessageModal("Müşteri bulunamadı.");
+                    }
+                };
+            }
+
+            // Giriş Mantığı
+            function handleLogin(providedPassword = null) {
+                const enteredPassword = providedPassword || passwordInput.value;
+                if (enteredPassword === PASSWORD) {
+                    loginSection.classList.add('hidden');
+                    contentSection.classList.remove('hidden');
+                    summarySection.classList.remove('hidden');
+                    logoutButton.classList.remove('hidden');
+                    debtorsButton.classList.remove('hidden');
+                    renderContent();
+                } else {
+                    showMessageModal("Yanlış şifre! Lütfen tekrar deneyin.");
+                }
+            }
+
+            // Giriş Butonları Event Dinleyicileri
+            loginButton.addEventListener('click', () => handleLogin());
+
+            passwordInput.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    handleLogin();
+                }
+            });
+
+            // Çıkış Butonu
+            logoutButton.addEventListener('click', () => {
+                contentSection.classList.add('hidden');
+                summarySection.classList.add('hidden');
+                logoutButton.classList.add('hidden');
+                debtorsButton.classList.add('hidden');
+                loginSection.classList.remove('hidden');
+                passwordInput.value = '';
+            });
+
+            // Borçlular Butonu
+            debtorsButton.addEventListener('click', () => {
+                let debtors = [];
+                users.forEach(person => {
+                    const remainingDebt = person.debt - person.paid;
+                    if (remainingDebt > 0) {
+                        let message = `• ${person.name}: ${remainingDebt} TL`;
+                        if (person.excuse) {
+                            message += ` (Mazeret: ${person.excuse})`;
+                        }
+                        debtors.push(message);
+                    }
+                });
+
+                let message = "";
+                if (debtors.length > 0) {
+                    message = "Borcu Bulunan Müşteriler:\n\n" + debtors.join("\n");
+                } else {
+                    message = "Tüm müşterilerin borcu ödenmiş. Tebrikler!";
+                }
+                
+                showMessageModal(message);
+            });
+
+            // Para Yatırma Başvurusu
+            depositButton.addEventListener('click', () => {
+                const amount = parseFloat(depositAmountInput.value);
+                const selectedUserId = parseInt(userSelect.value, 10);
+                const selectedUser = users.find(u => u.id === selectedUserId);
+
+                if (isNaN(amount) || amount <= 0) {
+                    showMessageModal("Lütfen geçerli bir tutar girin.");
+                    return;
+                }
+                if (!selectedUser) {
+                    showMessageModal("Lütfen bir müşteri seçin.");
+                    return;
+                }
+
+                depositButton.disabled = true;
+                applicationStatus.classList.remove('hidden');
+                statusIcon.innerHTML = `<div class="spinner"></div>`;
+                statusMessage.textContent = "Başvuru inceleniyor...";
+
+                setTimeout(() => {
+                    const isApproved = Math.random() > 0.3;
+
+                    if (isApproved) {
+                        selectedUser.paid += amount;
+                        renderContent();
+                        
+                        statusIcon.innerHTML = `<i class="fas fa-check-circle text-green-500"></i>`;
+                        statusMessage.textContent = "Başvuru onaylandı! Para hesaba yatırıldı.";
+                        statusMessage.className = "font-semibold text-green-600";
+                    } else {
+                        statusIcon.innerHTML = `<i class="fas fa-tim
